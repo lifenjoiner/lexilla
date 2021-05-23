@@ -1,0 +1,49 @@
+name: Windows CI
+
+on: [push, pull_request]
+
+jobs:
+  build-full:
+    strategy:
+      matrix:
+        bits: [32, 64]
+        ftype: [LEXILLA_SHARED, LEXILLA_STATIC]
+      fail-fast: false
+    name: mingw${{matrix.bits}}-${{matrix.ftype}}
+    runs-on: windows-latest
+    env:
+      mingw: mingw${{matrix.bits}}
+    defaults:
+      run:
+        shell: cmd
+    steps:
+    # wget and unzip are used.
+    - name: Set up MSYS2
+      uses: msys2/setup-msys2@v2
+      with:
+        msystem: ${{env.mingw}}
+        release: false
+
+    - name: Prepare Scintilla
+      shell: msys2 {0}
+      run: |
+        cd ..
+        wget --no-verbose https://www.scintilla.org/scintilla502.zip
+        unzip scintilla502.zip
+
+    - uses: actions/checkout@v2
+      with:
+        fetch-depth: 0
+
+    - name: Build lexilla libraries
+      run: |
+        cd src
+        PATH C:\msys64\%mingw%\bin;%PATH%
+        mingw32-make.exe
+
+    - name: Test
+      run: |
+        cd test
+        PATH C:\msys64\%mingw%\bin;%PATH%
+        set ${{matrix.ftype}}=1
+        mingw32-make test
